@@ -46,6 +46,21 @@ enum TopicStatus {
   unadvertised,
 }
 
+/// Status Level을 ROS에 알리기 위한 상태
+enum RosStatusLevel {
+  ///
+  none,
+
+  ///
+  error,
+
+  ///
+  warning,
+
+  ///
+  info,
+}
+
 /// 연결되지 않았을 때 message 보내거나 하는 상황에 발생하는 예외
 class RosNotConnectedException implements Exception {}
 
@@ -80,7 +95,7 @@ class Ros {
   late WebSocketChannel _channel;
 
   /// websocket stream 구독
-  late StreamSubscription _channelListener;
+  late StreamSubscription<Map<String, dynamic>> _channelListener;
 
   /// JSON broadcast websocket stream
   late Stream<Map<String, dynamic>> stream;
@@ -135,6 +150,7 @@ class Ros {
     status = RosStatus.closed;
   }
 
+  /// websocket endpoint에 연결 검증 request(JSON String)
   void authenticate({
     required String mac,
     required String client,
@@ -157,13 +173,15 @@ class Ros {
     send(value.toString());
   }
 
+  /// websocket endpoint에 상태 업데이트 request(JSON String)
+  /// [id] is the optional operation ID to change status level on
   void setStatusLevel({
-    String? level,
+    required RosStatusLevel level,
     int? id,
   }) {
     final value = {
       'op': 'set_level',
-      'level': level,
+      'level': level.name,
       'id': id,
     };
 
@@ -174,6 +192,30 @@ class Ros {
   void send(String message) {
     if (status != RosStatus.connected) throw RosNotConnectedException();
     _channel.sink.add(message);
+  }
+
+  /// Request a subscription ID.
+  String requestSubscriber(String name) {
+    subscribers++;
+    return 'subscribe:$name:$ids';
+  }
+
+  /// Request an advertiser ID.
+  String requestAdvertiser(String name) {
+    advertisers++;
+    return 'advertise:$name:$ids';
+  }
+
+  /// Request a publisher ID.
+  String requestPublisher(String name) {
+    publishers++;
+    return 'publish:$name:$ids';
+  }
+
+  /// Request a service caller ID.
+  String requestServiceCaller(String name) {
+    serviceCallers++;
+    return 'call_service:$name:$ids';
   }
 
   @override

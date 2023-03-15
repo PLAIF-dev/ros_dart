@@ -1,3 +1,5 @@
+// Copyright (c) 2019 Conrad Heidebrecht.
+
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 /// Implemented in `socket_html.dart` and `socket_io.dart`

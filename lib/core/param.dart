@@ -5,47 +5,48 @@ import 'package:ros_dart/core/service.dart';
 
 /// ROS 매개변수wrapper
 class Param {
-  Param({
+  /// ROS 매개변수wrapper
+  const Param({
     required this.ros,
     required this.name,
   });
 
   /// ROS 연결 객체
-  Ros ros;
+  final Ros ros;
 
   /// 파라미터 이름
-  String name;
+  final String name;
 
-  /// Get the parameter from the ROS node using the /rosapi/get_param service.
-  Future get() {
+  /// ROS Node로 부터 parameter 받아오기(/rosapi/get_param service 사용)
+  Future<List<Map<String, dynamic>>> get() {
     final client = RosService(
       ros: ros,
       name: '/rosapi/get_param',
       type: 'rosapi/GetParam',
     );
-    return client.call({'name': name});
+    return client({'name': name});
   }
 
-  /// Set the [value] of the parameter.
-  Future set(dynamic value) {
+  /// [value] 지정
+  Future<List<Map<String, dynamic>>> set(dynamic value) {
     final client = RosService(
       ros: ros,
       name: '/rosapi/set_param',
       type: 'rosapi/SetParam',
     );
-    return client.call({
+    return client({
       'name': name,
       'value': value,
     });
   }
 
-  /// Delete the parameter.
-  Future delete() {
+  /// parameter 삭제
+  Future<List<Map<String, dynamic>>> delete() {
     final client = RosService(
       ros: ros,
       name: '/rosapi/delete_param',
       type: 'rosapi/DeleteParam',
     );
-    return client.call({'name': name});
+    return client({'name': name});
   }
 }
