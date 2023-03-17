@@ -74,7 +74,7 @@ class Ros {
   }
 
   /// rosbridge server를 구동하는 ROS Node의 uri
-  late Uri uri;
+  Uri uri;
 
   /// 연결된 subscriber의 수
   int subscribers = 0;
@@ -170,7 +170,7 @@ class Ros {
       'end': end.millisecondsSinceEpoch,
     };
 
-    send(value.toString());
+    send(json.encode(value));
   }
 
   /// websocket endpoint에 상태 업데이트 request(JSON String)

@@ -90,6 +90,7 @@ class RosRequest {
   /// true when indicating the success of the operation.
   final bool? result;
 
+  /// Language Server가 String typo는 잡아주지 않기 때문에 변환에 반드시 이것 사용
   Map<String, dynamic> toJson() {
     return {
       'op': op,
@@ -103,11 +104,12 @@ class RosRequest {
       'queue_size': queueSize ?? 0,
       'service': service ?? '',
       'args': args ?? '',
-      'values': values ?? '',
-      'result': false,
+      'values': values,
+      'result': result ?? false,
     };
   }
 
+  /// String 변환을 위해 통일해서 사용하라
   String encode() {
     return json.encode(toJson());
   }

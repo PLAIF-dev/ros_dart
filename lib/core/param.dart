@@ -4,9 +4,9 @@ import 'package:ros_dart/core/ros.dart';
 import 'package:ros_dart/core/service.dart';
 
 /// ROS 매개변수wrapper
-class Param {
+class RosParam {
   /// ROS 매개변수wrapper
-  const Param({
+  const RosParam({
     required this.ros,
     required this.name,
   });

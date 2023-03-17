@@ -33,7 +33,7 @@ class RosTopic {
     this.queueSize = 100,
     this.queueLength = 0,
     this.reconnectOnClose = true,
-  }) : assert(throttleRate >= 0);
+  }) : assert(throttleRate >= 0, 'throttleRate must be positive');
 
   final Ros ros;
 
@@ -115,12 +115,11 @@ class RosTopic {
     publishId = ros.requestPublisher(name);
     await safeSend(
       RosRequest(
-        op: 'advertise',
-        id: advertiseId,
-        type: type,
+        op: 'publish',
         topic: name,
+        id: publishId,
+        msg: message,
         latch: latch,
-        queueSize: queueSize,
       ),
     );
   }
@@ -167,11 +166,11 @@ class RosTopic {
 
   /// 안전한 연결을 위해 만약 연결되지 않았거나,
   /// [reconnectOnClose]이 true라면, ROS 재연결 까지 기다리고, 다시 메시지 보냄
-  Future<void> safeSend(RosRequest message) async {
-    ros.send(json.encode(message.toJson()));
+  Future<void> safeSend(RosRequest request) async {
+    ros.send(request.encode());
     if (reconnectOnClose && ros.status != RosStatus.connected) {
       await ros.statusStream.firstWhere((s) => s == RosStatus.connected);
-      ros.send(json.encode(message.toJson()));
+      ros.send(request.encode());
     }
   }
 }

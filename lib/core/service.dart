@@ -81,7 +81,7 @@ class RosService {
       type: type,
       service: name,
     );
-    ros.send(json.encode(request.toJson()));
+    ros.send(request.encode());
 
     // request 를 받아 처리하기 위해 stream, hanlder를 정의하였고
     // response를 다시 ROS Node로 전송
@@ -98,7 +98,7 @@ class RosService {
         values: resp ?? {},
         result: resp != null,
       );
-      ros.send(json.encode(request.toJson()));
+      ros.send(request.encode());
     });
   }
 
@@ -109,7 +109,7 @@ class RosService {
       op: 'unadvertise_service',
       service: name,
     );
-    ros.send(json.encode(request.toJson()));
+    ros.send(request.encode());
     _advertiser = null;
   }
 }
