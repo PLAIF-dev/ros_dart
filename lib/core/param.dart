@@ -18,7 +18,7 @@ class RosParam {
   final String name;
 
   /// ROS Node로 부터 parameter 받아오기(/rosapi/get_param service 사용)
-  Future<List<Map<String, dynamic>>> get() {
+  Future<dynamic> get() {
     final client = RosService(
       ros: ros,
       name: '/rosapi/get_param',

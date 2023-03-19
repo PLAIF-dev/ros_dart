@@ -1,7 +1,5 @@
 // Copyright (c) 2019 Conrad Heidebrecht.
 
-import 'dart:convert';
-
 import 'package:ros_dart/core/request.dart';
 import 'package:ros_dart/core/ros.dart';
 
