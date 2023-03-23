@@ -142,7 +142,7 @@ class Ros {
   }
 
   /// exit [code] 와 [reason]은 상황에 따라 제공될 수 있음
-  Future<void> close([int? code, String? reason]) async {
+  Future<void> dispose([int? code, String? reason]) async {
     await _channelListener.cancel();
     await _channel.sink.close(code, reason);
 
