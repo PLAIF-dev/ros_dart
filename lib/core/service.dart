@@ -35,12 +35,12 @@ class RosService {
   /// 서비스가 현재 advertising 하고 있는지 여부
   bool get isAdvertised => _advertiser != null;
 
-  StreamSubscription<List<Map<String, dynamic>>>? listener;
+  StreamSubscription<dynamic>? listener;
 
   /// Request [args]를 이용하여 서비스 호출
-  Future<List<Map<String, dynamic>>> call(Map<String, dynamic> args) async {
+  Future<dynamic> call(Map<String, dynamic> args) async {
     // TODO(youngmin-gwon): change to custom exception
-    if (isAdvertised) throw UnimplementedError();
+    // if (isAdvertised) throw UnimplementedError();
 
     final callId = ros.requestServiceCaller(name);
     final receiver = ros.stream
@@ -50,22 +50,28 @@ class RosService {
         .map(
       (message) {
         if (message['result'] == null) {
-          // TODO(youngmin-gwon): consider whether it throws exception or empty list
-          return <Map<String, dynamic>>[];
+          // TODO(youngmin-gwon): consider whether it throws exception or empty
+          throw UnimplementedError();
         }
-        final parsedJson =
-            json.decode(message['result'] as String) as List<dynamic>;
-        return List<Map<String, dynamic>>.from(
-          parsedJson.map((i) => i as Map<String, dynamic>),
-        );
+        return json.decode(message['result'].toString());
       },
     );
 
-    final completer = Completer<List<Map<String, dynamic>>>();
+    final completer = Completer<dynamic>();
     listener = receiver.listen((d) {
       completer.complete(d);
       listener!.cancel();
     });
+
+    ros.send(
+      RosRequest(
+        op: 'call_service',
+        id: callId,
+        service: name,
+        type: type,
+        args: args,
+      ).encode(),
+    );
 
     return completer.future;
   }
