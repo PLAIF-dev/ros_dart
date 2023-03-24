@@ -3,10 +3,10 @@
 import 'package:ros_dart/core/request.dart';
 import 'package:ros_dart/core/ros.dart';
 
-/// service가 advertising을 할 때 request를 처리하는 함수
+/// callback when advertising service
 typedef SubscribeHandler = Future<void> Function(Map<String, dynamic> args);
 
-/// 압축 확장자 범위를 좁히는 역할로 사용함
+/// Compression extension
 enum RosCompression {
   ///
   none,
@@ -18,9 +18,9 @@ enum RosCompression {
   cbor,
 }
 
-/// ROS topic을 단지 wrapping한 것 뿐임
+/// ROS Topic wrapper
 class RosTopic {
-  ///
+  /// ROS Topic wrapper
   RosTopic({
     required this.ros,
     required this.name,
@@ -33,39 +33,53 @@ class RosTopic {
     this.reconnectOnClose = true,
   }) : assert(throttleRate >= 0, 'throttleRate must be positive');
 
+  /// [Ros] object
   final Ros ros;
 
+  /// Topic name
+  ///
+  /// ex) /turtle1/cmd_vel
   final String name;
 
+  /// Topic type
+  ///
+  /// ex) /geometry_msgs/Twist
   final String type;
 
+  ///
   Stream<Map<String, dynamic>>? subscription;
 
-  /// [ros] 가 제공하는 subscription ID
+  /// id of subscriber
   String? subscribeId;
 
-  /// [ros] 가 제공하는 advertiser ID
+  /// id of advertiser
   String? advertiseId;
 
-  /// [ros] 가 제공하는 publisher ID
+  /// id of publisher
   late String publishId;
 
-  /// 'png'나 'cbor' 등의 압축타입. 기본은 [RosCompression.none]
+  /// compression type such as 'png' or 'cbor'. default is [RosCompression.none]
   final RosCompression compression;
 
-  final int throttleRate;
-
-  final bool latch;
-
-  final int queueSize;
-
-  final int queueLength;
-
+  ///
   final bool reconnectOnClose;
 
-  /// topic이 현재 advertising 하고 있는지 확인
+  /// true when topic latches in publishing
+  final bool latch;
+
+  /// rate to pass between message by message
+  final int throttleRate;
+
+  /// queue length from ROSBridge to subscribe
+  final int queueLength;
+
+  /// queue size from ROSBridge to republish topic
+  final int queueSize;
+
+  /// true when advertised
   bool get isAdvertised => advertiseId != null;
 
+  ///
   Future<void> subscribe(SubscribeHandler handler) async {
     if (subscribeId == null) {
       subscription = ros.stream;
@@ -76,7 +90,7 @@ class RosTopic {
           id: subscribeId,
           type: type,
           topic: name,
-          compression: compression.name,
+          compression: compression,
           throttleRate: throttleRate,
           queueLength: queueLength,
         ),
@@ -122,7 +136,7 @@ class RosTopic {
     );
   }
 
-  /// advertising 시작
+  /// it starts advertising
   Future<void> advertise() async {
     if (!isAdvertised) {
       advertiseId = ros.requestAdvertiser(name);
@@ -141,7 +155,7 @@ class RosTopic {
     }
   }
 
-  /// advertising 종료
+  /// it stops advertising
   Future<void> unadvertise() async {
     if (isAdvertised) {
       await safeSend(
@@ -155,6 +169,7 @@ class RosTopic {
     }
   }
 
+  /// Wait for the connection to close and then reset advertising variables.
   Future<void> watchForClose() async {
     if (!reconnectOnClose) {
       await ros.statusStream.firstWhere((s) => s == RosStatus.closed);
@@ -162,8 +177,7 @@ class RosTopic {
     }
   }
 
-  /// 안전한 연결을 위해 만약 연결되지 않았거나,
-  /// [reconnectOnClose]이 true라면, ROS 재연결 까지 기다리고, 다시 메시지 보냄
+  /// This function has more conditional logic than [Ros.send]
   Future<void> safeSend(RosRequest request) async {
     ros.send(request.encode());
     if (reconnectOnClose && ros.status != RosStatus.connected) {

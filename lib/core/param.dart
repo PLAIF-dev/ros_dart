@@ -3,50 +3,54 @@
 import 'package:ros_dart/core/ros.dart';
 import 'package:ros_dart/core/service.dart';
 
-/// ROS 매개변수wrapper
+/// ROS Parameter wrapper
 class RosParam {
-  /// ROS 매개변수wrapper
+  /// ROS Parameter wrapper
   const RosParam({
     required this.ros,
     required this.name,
   });
 
-  /// ROS 연결 객체
+  /// [Ros] object which handles connection with `ROS`.
   final Ros ros;
 
-  /// 파라미터 이름
+  /// [RosParam] name. Check this with the command below.
+  /// ```shell
+  /// rosparam list
+  /// ```
+  ///
   final String name;
 
-  /// ROS Node로 부터 parameter 받아오기(/rosapi/get_param service 사용)
-  Future<dynamic> get() {
+  /// this method mostly returns [bool] value for call success
+  Future<dynamic> get() async {
     final client = RosService(
       ros: ros,
       name: '/rosapi/get_param',
       type: 'rosapi/GetParam',
     );
-    return client({'name': name});
+    return client.call({'name': name});
   }
 
-  /// [value] 지정
-  Future<List<Map<String, dynamic>>> set(dynamic value) {
+  /// this method mostly returns [bool] value for call success
+  Future<dynamic> set(dynamic value) async {
     final client = RosService(
       ros: ros,
       name: '/rosapi/set_param',
       type: 'rosapi/SetParam',
     );
-    return client({
+    return client.call({
       'name': name,
       'value': value,
     });
   }
 
-  /// parameter 삭제
-  Future<List<Map<String, dynamic>>> delete() {
+  /// this method mostly returns [bool] value for call success
+  Future<dynamic> delete() async {
     final client = RosService(
       ros: ros,
       name: '/rosapi/delete_param',
       type: 'rosapi/DeleteParam',
     );
-    return client({'name': name});
+    return client.call({'name': name});
   }
 }

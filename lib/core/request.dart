@@ -2,10 +2,13 @@
 
 import 'dart:convert';
 
+import 'package:ros_dart/core/core.dart';
+
 /// Container for all possible ROS request parameters
 class RosRequest {
-  /// !주의!: 모든 RosRequest는 생성이후 수정이 불가능하다라고 정의하였으나,
-  /// 추후 protocol 확인 후 변경될 수 있음
+  /// A proposal object to receive data from protocols
+  /// such as topic, service in ROS
+  /// !warning: This writer arbitrarily assume that the request is immutable
   const RosRequest({
     required this.op,
     this.id,
@@ -23,12 +26,12 @@ class RosRequest {
     this.result,
   });
 
-  /// String으로 들어온 경우는 변경로직 만들지말고 이것 사용
+  /// Use this always to convert raw `String` data to `RosRequest`
   factory RosRequest.decode(String raw) {
     return RosRequest.fromJson(json.decode(raw) as Map<String, dynamic>);
   }
 
-  /// JSON 기본 변환 생성자
+  /// `JSON` converter
   factory RosRequest.fromJson(Map<String, dynamic> jsonData) {
     return RosRequest(
       op: jsonData['op'] as String,
@@ -37,7 +40,9 @@ class RosRequest {
       topic: jsonData['topic'] as String?,
       msg: jsonData['msg'] as Map<String, dynamic>,
       latch: jsonData['latch'] as bool?,
-      compression: jsonData['compression'] as String?,
+      compression: RosCompression.values.firstWhere(
+        (e) => e.toString() == jsonData['compression'] as String?,
+      ),
       throttleRate: jsonData['throttle_rate'] as int?,
       queueLength: jsonData['queue_length'] as int?,
       queueSize: jsonData['queue_size'] as int?,
@@ -48,49 +53,49 @@ class RosRequest {
     );
   }
 
-  /// 요청보낸 작업.
+  /// operation name such as `call_service`, `advertise_service`
   final String op;
 
-  /// 작업중인 요청이나 객체를 구분하기 위한 ID
+  /// arbitrary id for uniqueness
   final String? id;
 
-  /// 메시지 혹은 서비스 타입.
+  /// type of service or message
   final String? type;
 
-  /// 작업중인 Topic 이름.
+  /// [RosTopic.name]
   final String? topic;
 
-  /// 메시지 객체.
+  /// messages
   final Map<String, dynamic> msg;
 
-  /// 배포(publishing)할 때 topic을 latch 하였는지 아닌지 여부.
+  /// true when topic latches in publishing
   final bool? latch;
 
-  /// 사용하기 위한 압축타입. `png`, `cbor`.
-  final String? compression;
+  /// compression type such as `png`, `cbor`.
+  final RosCompression? compression;
 
-  /// 메시지 사이 Topic 진입을 막기 위한 throttle 비율.
+  /// rate to pass between message by message
   final int? throttleRate;
 
-  /// 구독할 때 사용하는 bridge 측의 queue 길이.
+  /// queue length from ROSBridge to subscribe
   final int? queueLength;
 
-  /// topic 제발행을 위해 bridge 측에서 생성되는 queue 크기.
+  /// queue size from ROSBridge to republish topic
   final int? queueSize;
 
-  /// 작동하는 서비스 이름.
+  /// service name
   final String? service;
 
-  /// 요청 인자 (JSON).
+  /// JSON arguments
   final Map<String, dynamic>? args;
 
-  /// 요청으로부터의 응답값.
+  /// the result can vary from `bool` to `JSON List`
   final dynamic values;
 
   /// true when indicating the success of the operation.
   final bool? result;
 
-  /// Language Server가 String typo는 잡아주지 않기 때문에 변환에 반드시 이것 사용
+  /// Use this because Language Server cannot guarantee typo of [Map]
   Map<String, dynamic> toJson() {
     return {
       'op': op,
@@ -109,7 +114,7 @@ class RosRequest {
     };
   }
 
-  /// String 변환을 위해 통일해서 사용하라
+  /// Use this always to convert this object to `String`
   String encode() {
     return json.encode(toJson());
   }

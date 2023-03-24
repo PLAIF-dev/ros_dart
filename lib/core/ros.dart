@@ -1,5 +1,7 @@
 // Copyright (c) 2019 Conrad Heidebrecht.
 
+// ignore_for_file: avoid_equals_and_hash_code_on_mutable_classes
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -10,7 +12,7 @@ import 'package:ros_dart/core/socket.dart'
 
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-/// 연결 상태
+/// Connection status. It is used before sending request to `ROS`.
 enum RosStatus {
   /// default
   none,
@@ -28,25 +30,7 @@ enum RosStatus {
   errored,
 }
 
-/// 토픽 전달 상태
-enum TopicStatus {
-  ///
-  subscribed,
-
-  ///
-  unsubscribed,
-
-  ///
-  published,
-
-  ///
-  advertised,
-
-  ///
-  unadvertised,
-}
-
-/// Status Level을 ROS에 알리기 위한 상태
+/// It is used to let `ROS` know status.
 enum RosStatusLevel {
   ///
   none,
@@ -61,59 +45,73 @@ enum RosStatusLevel {
   info,
 }
 
-/// 연결되지 않았을 때 message 보내거나 하는 상황에 발생하는 예외
+/// This custom exception is only used when checking connection in [Ros.send()]
 class RosNotConnectedException implements Exception {}
 
-/// ROS Node로부터 나오고 들어가는 모든 데이터를 관리하는 클래스
-/// ROS 상태와 Node와 연결에 대한 핵심 정보를 관리함
+/// This holds status and info of connection between `Client` and `ROS`
 class Ros {
-  /// [_statusController]를 초기화
-  /// ROS Node의 [uri]는 이 시점에 추가될 수 있음
-  Ros({required this.uri}) {
-    _statusController = StreamController<RosStatus>.broadcast();
-  }
+  /// common URI example
+  /// ```dart
+  /// Uri.parse()
+  /// ```
+  Ros({required Uri uri})
+      : _uri = uri,
+        _statusController = StreamController<RosStatus>.broadcast();
 
-  /// rosbridge server를 구동하는 ROS Node의 uri
-  Uri uri;
+  /// Other objects or view can utilize this object to act depending on status
+  final StreamController<RosStatus> _statusController;
 
-  /// 연결된 subscriber의 수
-  int subscribers = 0;
+  /// ROSBridge server URI
+  /// Use [Uri.parse] to create URI object
+  /// ```dart
+  /// Uri.parse('ws://172.0.0.1:9090')
+  /// ```
+  ///
+  /// It can be changed in [connect]
+  Uri _uri;
 
-  /// 연결된 advertiser의 수
-  int advertisers = 0;
+  /// ROSBridge server URI
+  /// ```dart
+  /// Uri.parse('ws://172.0.0.1:9090')
+  /// ```
+  Uri get uri => _uri;
 
-  /// 연결된 publisher의 수
-  int publishers = 0;
+  /// the number of subscribers
+  int _subscribers = 0;
 
-  /// service를 호출한 caller의 수
-  int serviceCallers = 0;
+  /// the number of advertisers
+  int _advertisers = 0;
 
-  /// !생성된 값이 trick 이기 때문에 주의
-  int get ids => subscribers + advertisers + publishers + serviceCallers;
+  /// the number of publishers
+  int _publishers = 0;
 
-  /// ROS Node와 통신하기 위한 websocket connection
-  late WebSocketChannel _channel;
+  /// the number of callers
+  int _serviceCallers = 0;
 
-  /// websocket stream 구독
-  late StreamSubscription<Map<String, dynamic>> _channelListener;
+  /// same as how many connections have been made
+  int get ids => _subscribers + _advertisers + _publishers + _serviceCallers;
+
+  /// ROSBridge use `WebSocket` to make bridge between `Client` and `ROS`
+  late final WebSocketChannel _channel;
+
+  /// Subscription to verify connection was successful or not
+  late final StreamSubscription<Map<String, dynamic>> _channelListener;
 
   /// JSON broadcast websocket stream
-  late Stream<Map<String, dynamic>> stream;
+  late final Stream<Map<String, dynamic>> stream;
 
-  /// 연결 상태에 따라 구독자들을 업데이트하기 위한 컨트롤러
-  late StreamController<RosStatus> _statusController;
-
-  /// 연결 상태 변경에 대한 stream
+  /// declarative name for current status
   Stream<RosStatus> get statusStream => _statusController.stream;
 
-  /// live update 가 필요하지 않을 때 사용할 수 있음
+  /// it can be used when live-updating is not necessary
   RosStatus status = RosStatus.none;
 
-  /// [uri] 업데이트 될 수 있음
+  /// This method must be used before starting communication with `ROS`
+  /// [_uri] can be updated in this method
   void connect({Uri? newUri}) {
-    uri = newUri ?? uri;
+    _uri = newUri ?? _uri;
     try {
-      _channel = initializeWebSocketChannel(uri);
+      _channel = initializeWebSocketChannel(_uri);
       stream = _channel.stream.asBroadcastStream().map(
             (raw) => json.decode(raw.toString()) as Map<String, dynamic>,
           );
@@ -141,8 +139,8 @@ class Ros {
     }
   }
 
-  /// exit [code] 와 [reason]은 상황에 따라 제공될 수 있음
-  Future<void> dispose([int? code, String? reason]) async {
+  /// Close channel from ROS
+  Future<void> close([int? code, String? reason]) async {
     await _channelListener.cancel();
     await _channel.sink.close(code, reason);
 
@@ -150,7 +148,7 @@ class Ros {
     status = RosStatus.closed;
   }
 
-  /// websocket endpoint에 연결 검증 request(JSON String)
+  /// Authentication request(JSON String) to websocket endpoint
   void authenticate({
     required String mac,
     required String client,
@@ -173,7 +171,7 @@ class Ros {
     send(json.encode(value));
   }
 
-  /// websocket endpoint에 상태 업데이트 request(JSON String)
+  /// Status update request(JSON String) to websocket endpoint
   /// [id] is the optional operation ID to change status level on
   void setStatusLevel({
     required RosStatusLevel level,
@@ -185,46 +183,46 @@ class Ros {
       'id': id,
     };
 
-    send(value.toString());
+    send(json.encode(value));
   }
 
-  /// ROS Node로 [message] 전달
+  /// Actual websocket communication
   void send(String message) {
     if (status != RosStatus.connected) throw RosNotConnectedException();
     _channel.sink.add(message);
   }
 
-  /// Request a subscription ID.
+  /// Generate subscriber name
   String requestSubscriber(String name) {
-    subscribers++;
+    _subscribers++;
     return 'subscribe:$name:$ids';
   }
 
-  /// Request an advertiser ID.
+  /// Generate advertiser name
   String requestAdvertiser(String name) {
-    advertisers++;
+    _advertisers++;
     return 'advertise:$name:$ids';
   }
 
-  /// Request a publisher ID.
+  /// Generate publisher name
   String requestPublisher(String name) {
-    publishers++;
+    _publishers++;
     return 'publish:$name:$ids';
   }
 
-  /// Request a service caller ID.
+  /// Generate service caller name
   String requestServiceCaller(String name) {
-    serviceCallers++;
+    _serviceCallers++;
     return 'call_service:$name:$ids';
   }
 
   @override
   bool operator ==(Object other) {
     return other is Ros &&
-        other.uri == uri &&
-        other.subscribers == subscribers &&
-        other.advertisers == advertisers &&
-        other.publishers == publishers &&
+        other._uri == _uri &&
+        other._subscribers == _subscribers &&
+        other._advertisers == _advertisers &&
+        other._publishers == _publishers &&
         other._channel == _channel &&
         other._channelListener == _channelListener &&
         other.stream == stream &&
@@ -234,10 +232,10 @@ class Ros {
 
   @override
   int get hashCode =>
-      uri.hashCode +
-      subscribers.hashCode +
-      advertisers.hashCode +
-      publishers.hashCode +
+      _uri.hashCode +
+      _subscribers.hashCode +
+      _advertisers.hashCode +
+      _publishers.hashCode +
       _channel.hashCode +
       _channelListener.hashCode +
       stream.hashCode +
