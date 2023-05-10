@@ -1,10 +1,4 @@
-// Copyright (c) 2019 Conrad Heidebrecht.
-
-import 'dart:async';
-import 'dart:convert';
-
-import 'package:ros_dart/core/request.dart';
-import 'package:ros_dart/core/ros.dart';
+part of '../ros_dart.dart';
 
 /// A callback from advertisement succeeds
 typedef ServiceHandler = Future<Map<String, dynamic>>? Function(

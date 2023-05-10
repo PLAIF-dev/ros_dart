@@ -1,7 +1,6 @@
 // Copyright (c) 2019 Conrad Heidebrecht.
 
-import 'package:ros_dart/core/ros.dart';
-import 'package:ros_dart/core/service.dart';
+part of '../ros_dart.dart';
 
 /// ROS Parameter wrapper
 class RosParam {

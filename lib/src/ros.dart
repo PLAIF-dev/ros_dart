@@ -1,16 +1,6 @@
-// Copyright (c) 2019 Conrad Heidebrecht.
-
 // ignore_for_file: avoid_equals_and_hash_code_on_mutable_classes
 
-import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:ros_dart/core/socket.dart'
-    if (dart.library.html) 'socket_html.dart'
-    if (dart.library.io) 'socket_io.dart';
-
-import 'package:web_socket_channel/web_socket_channel.dart';
+part of '../ros_dart.dart';
 
 /// Connection status. It is used before sending request to `ROS`.
 enum RosStatus {
@@ -30,21 +20,6 @@ enum RosStatus {
   errored,
 }
 
-/// It is used to let `ROS` know status.
-enum RosStatusLevel {
-  ///
-  none,
-
-  ///
-  error,
-
-  ///
-  warning,
-
-  ///
-  info,
-}
-
 /// This custom exception is only used when checking connection in [Ros.send()]
 class RosNotConnectedException implements Exception {}
 
@@ -54,27 +29,12 @@ class Ros {
   /// ```dart
   /// Uri.parse()
   /// ```
-  Ros({required Uri uri})
-      : _uri = uri,
-        _statusController = StreamController<RosStatus>.broadcast();
+  Ros({required Uri uri, RosWebsocket? socket})
+      : _statusController = StreamController<RosStatus>.broadcast(),
+        _socket = socket ?? RosWebsocketImpl(uri);
 
   /// Other objects or view can utilize this object to act depending on status
   final StreamController<RosStatus> _statusController;
-
-  /// ROSBridge server URI
-  /// Use [Uri.parse] to create URI object
-  /// ```dart
-  /// Uri.parse('ws://172.0.0.1:9090')
-  /// ```
-  ///
-  /// It can be changed in [connect]
-  Uri _uri;
-
-  /// ROSBridge server URI
-  /// ```dart
-  /// Uri.parse('ws://172.0.0.1:9090')
-  /// ```
-  Uri get uri => _uri;
 
   /// the number of subscribers
   int _subscribers = 0;
@@ -88,11 +48,14 @@ class Ros {
   /// the number of callers
   int _serviceCallers = 0;
 
+  /// ROSBridge server URI
+  Uri get uri => _socket.uri;
+
   /// same as how many connections have been made
   int get ids => _subscribers + _advertisers + _publishers + _serviceCallers;
 
   /// ROSBridge use `WebSocket` to make bridge between `Client` and `ROS`
-  late final WebSocketChannel _channel;
+  final RosWebsocket _socket;
 
   /// Subscription to verify connection was successful or not
   late final StreamSubscription<Map<String, dynamic>> _channelListener;
@@ -107,42 +70,37 @@ class Ros {
   RosStatus status = RosStatus.none;
 
   /// This method must be used before starting communication with `ROS`
-  /// [_uri] can be updated in this method
-  void connect({Uri? newUri}) {
-    _uri = newUri ?? _uri;
+  Future<void> connect([Duration? timeout]) async {
     try {
-      _channel = initializeWebSocketChannel(_uri);
-      stream = _channel.stream.asBroadcastStream().map(
-            (raw) => json.decode(raw.toString()) as Map<String, dynamic>,
-          );
+      await _socket.connect(timeout);
       status = RosStatus.connected;
       _statusController.add(status);
-      _channelListener = stream.listen(
-        (data) {
-          if (status != RosStatus.connected) {
-            status = RosStatus.connected;
-            _statusController.add(status);
-          }
-        },
-        onDone: () {
-          status = RosStatus.closed;
-          _statusController.add(status);
-        },
-        onError: (_) {
-          status = RosStatus.errored;
-          _statusController.add(status);
-        },
-      );
-    } on WebSocketException {
-      status = RosStatus.errored;
-      _statusController.add(status);
+    } on RosWebsocketException {
+      rethrow;
     }
+
+    // _channelListener = stream.listen(
+    //   (data) {
+    //     if (status != RosStatus.connected) {
+    //       status = RosStatus.connected;
+    //       _statusController.add(status);
+    //     }
+    //   },
+    //   onDone: () {
+    //     status = RosStatus.closed;
+    //     _statusController.add(status);
+    //   },
+    //   onError: (_) {
+    //     status = RosStatus.errored;
+    //     _statusController.add(status);
+    //   },
+    // );
   }
 
   /// Close channel from ROS
   Future<void> close([int? code, String? reason]) async {
     await _channelListener.cancel();
-    await _channel.sink.close(code, reason);
+    await _socket.close(code, reason);
 
     _statusController.add(RosStatus.closed);
     status = RosStatus.closed;
@@ -171,25 +129,10 @@ class Ros {
     send(json.encode(value));
   }
 
-  /// Status update request(JSON String) to websocket endpoint
-  /// [id] is the optional operation ID to change status level on
-  void setStatusLevel({
-    required RosStatusLevel level,
-    int? id,
-  }) {
-    final value = {
-      'op': 'set_level',
-      'level': level.name,
-      'id': id,
-    };
-
-    send(json.encode(value));
-  }
-
   /// Actual websocket communication
   void send(String message) {
     if (status != RosStatus.connected) throw RosNotConnectedException();
-    _channel.sink.add(message);
+    _socket.send(message);
   }
 
   /// Generate subscriber name
@@ -219,11 +162,10 @@ class Ros {
   @override
   bool operator ==(Object other) {
     return other is Ros &&
-        other._uri == _uri &&
         other._subscribers == _subscribers &&
         other._advertisers == _advertisers &&
         other._publishers == _publishers &&
-        other._channel == _channel &&
+        other._socket == _socket &&
         other._channelListener == _channelListener &&
         other.stream == stream &&
         other._statusController == _statusController &&
@@ -232,11 +174,10 @@ class Ros {
 
   @override
   int get hashCode =>
-      _uri.hashCode +
       _subscribers.hashCode +
       _advertisers.hashCode +
       _publishers.hashCode +
-      _channel.hashCode +
+      _socket.hashCode +
       _channelListener.hashCode +
       stream.hashCode +
       _statusController.hashCode +

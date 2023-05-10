@@ -1,8 +1,4 @@
-// Copyright (c) 2019 Conrad Heidebrecht.
-
-import 'dart:convert';
-
-import 'package:ros_dart/core/core.dart';
+part of '../ros_dart.dart';
 
 /// Container for all possible ROS request parameters
 class RosRequest {

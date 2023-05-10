@@ -1,7 +1,4 @@
-// Copyright (c) 2019 Conrad Heidebrecht.
-
-import 'package:ros_dart/core/request.dart';
-import 'package:ros_dart/core/ros.dart';
+part of '../ros_dart.dart';
 
 /// callback when advertising service
 typedef SubscribeHandler = Future<void> Function(Map<String, dynamic> args);
