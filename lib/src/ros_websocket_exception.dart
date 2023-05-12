@@ -1,6 +1,6 @@
 part of '../ros_dart.dart';
 
-/// Exception when websocket connection fails
+/// Exception when websocket tries to send message without connection
 
 class RosWebsocketException implements Exception {
   /// Message would be empty string

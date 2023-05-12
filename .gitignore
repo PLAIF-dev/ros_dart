@@ -6,3 +6,6 @@
 .packages
 build/
 pubspec.lock
+
+# IDE-related
+.vscode/

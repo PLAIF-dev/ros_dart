@@ -72,7 +72,7 @@ class Ros {
   /// This method must be used before starting communication with `ROS`
   Future<void> connect([Duration? timeout]) async {
     try {
-      await _socket.connect(timeout).catchError(_handleConnectError);
+      await _socket.connect(timeout);
 
       stream = _socket.stream.asBroadcastStream().map(
             (raw) => json.decode(raw.toString()) as Map<String, dynamic>,
@@ -96,7 +96,7 @@ class Ros {
           _statusController.add(status);
         },
       );
-    } on RosWebsocketException {
+    } on SocketException {
       rethrow;
     }
   }
@@ -161,10 +161,6 @@ class Ros {
   String requestServiceCaller(String name) {
     _serviceCallers++;
     return 'call_service:$name:$ids';
-  }
-
-  Future<void> _handleConnectError(Object? _) {
-    throw const RosWebsocketException();
   }
 
   @override
