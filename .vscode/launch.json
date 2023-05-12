@@ -1,0 +1,11 @@
+{
+    "configurations": [
+        {
+            "name": "Command file",
+            "type": "dart",
+            "request": "launch",
+            "cwd": "example",
+            "program": "bin/example.dart"
+        }
+    ]
+}
