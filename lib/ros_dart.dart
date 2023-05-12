@@ -2,10 +2,9 @@
 library ros_dart;
 
 import 'dart:async'
-    show Completer, Stream, StreamController, StreamSubscription, Timer;
+    show Completer, Stream, StreamController, StreamSubscription;
 import 'dart:convert' show json;
-
-import 'package:web_socket_client/web_socket_client.dart';
+import 'dart:io';
 
 part 'src/param.dart';
 part 'src/request.dart';

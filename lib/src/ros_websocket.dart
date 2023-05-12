@@ -33,41 +33,33 @@ class RosWebsocketImpl implements RosWebsocket {
   RosWebsocketImpl(this._uri);
 
   final Uri _uri;
-  late final WebSocket _socket;
+  WebSocket? _socket;
 
   @override
   Uri get uri => _uri;
 
   @override
-  Stream<dynamic> get stream => _socket.messages;
+  Stream<dynamic> get stream => _socket ?? const Stream.empty();
 
   @override
   Future<void> connect([Duration? timeout]) async {
-    final completer = Completer<void>();
-    final localTimeout = timeout ?? const Duration(milliseconds: 2000);
-    final timer = Timer(localTimeout, () {
-      completer.completeError(Error());
-    });
-
-    _socket = WebSocket(uri, timeout: localTimeout);
-
-    _socket.connection.listen((state) {
-      if (state is Connected) {
-        timer.cancel();
-        completer.complete();
-      }
-    });
-
-    return completer.future;
+    try {
+      _socket = await WebSocket.connect(uri.toString());
+    } on SocketException {
+      rethrow;
+    }
   }
 
   @override
   Future<void> close([int? code, String? reason]) async {
-    return _socket.close(code, reason);
+    return _socket?.close(code, reason);
   }
 
   @override
   void send(dynamic message) {
-    _socket.send(message);
+    if (_socket == null) {
+      throw const RosWebsocketException();
+    }
+    _socket!.add(message);
   }
 }
