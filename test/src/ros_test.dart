@@ -26,16 +26,18 @@ void main() {
         () async {
           // arrange
           when(socket.connect).thenAnswer((_) async {});
+          when(() => socket.stream).thenAnswer((_) => const Stream.empty());
           // act
           await ros.connect();
           // assert
           verify(() => socket.connect());
+          verify(() => socket.stream);
           verifyNoMoreInteractions(socket);
         },
       );
 
       test(
-        'should return RosWebsocketException when connection fails',
+        'should throw RosWebsocketException when connection fails',
         () async {
           // arrange
           const exception = RosWebsocketException();

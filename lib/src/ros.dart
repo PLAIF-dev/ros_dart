@@ -58,7 +58,7 @@ class Ros {
   final RosWebsocket _socket;
 
   /// Subscription to verify connection was successful or not
-  late final StreamSubscription<Map<String, dynamic>> _channelListener;
+  StreamSubscription<Map<String, dynamic>>? _channelListener;
 
   /// JSON broadcast websocket stream
   late final Stream<Map<String, dynamic>> stream;
@@ -72,34 +72,38 @@ class Ros {
   /// This method must be used before starting communication with `ROS`
   Future<void> connect([Duration? timeout]) async {
     try {
-      await _socket.connect(timeout);
+      await _socket.connect(timeout).catchError(_handleConnectError);
+
+      stream = _socket.stream.asBroadcastStream().map(
+            (raw) => json.decode(raw.toString()) as Map<String, dynamic>,
+          );
+
       status = RosStatus.connected;
       _statusController.add(status);
+      _channelListener = stream.listen(
+        (data) {
+          if (status != RosStatus.connected) {
+            status = RosStatus.connected;
+            _statusController.add(status);
+          }
+        },
+        onDone: () {
+          status = RosStatus.closed;
+          _statusController.add(status);
+        },
+        onError: (_) {
+          status = RosStatus.errored;
+          _statusController.add(status);
+        },
+      );
     } on RosWebsocketException {
       rethrow;
     }
-
-    // _channelListener = stream.listen(
-    //   (data) {
-    //     if (status != RosStatus.connected) {
-    //       status = RosStatus.connected;
-    //       _statusController.add(status);
-    //     }
-    //   },
-    //   onDone: () {
-    //     status = RosStatus.closed;
-    //     _statusController.add(status);
-    //   },
-    //   onError: (_) {
-    //     status = RosStatus.errored;
-    //     _statusController.add(status);
-    //   },
-    // );
   }
 
   /// Close channel from ROS
   Future<void> close([int? code, String? reason]) async {
-    await _channelListener.cancel();
+    await _channelListener?.cancel();
     await _socket.close(code, reason);
 
     _statusController.add(RosStatus.closed);
@@ -157,6 +161,10 @@ class Ros {
   String requestServiceCaller(String name) {
     _serviceCallers++;
     return 'call_service:$name:$ids';
+  }
+
+  Future<void> _handleConnectError(Object? _) {
+    throw const RosWebsocketException();
   }
 
   @override
