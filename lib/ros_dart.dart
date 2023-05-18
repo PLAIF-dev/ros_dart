@@ -13,3 +13,4 @@ part 'src/ros_websocket.dart';
 part 'src/ros_websocket_exception.dart';
 part 'src/service.dart';
 part 'src/topic.dart';
+part 'src/action.dart';

@@ -1,0 +1,2 @@
+reporter: compact # compact, expaneded, github, json
+test-randomize-ordering-seed: random
