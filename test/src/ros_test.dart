@@ -1,8 +1,11 @@
 import 'package:mocktail/mocktail.dart';
 import 'package:ros_dart/ros_dart.dart';
+import 'package:test/fake.dart' as fake;
 import 'package:test/test.dart';
 
 class MockRosWebsocket extends Mock implements RosWebsocket {}
+
+class FakeRosWebsocket extends fake.Fake implements RosWebsocket {}
 
 void main() {
   late Ros ros;
@@ -43,7 +46,6 @@ void main() {
           const exception = RosWebsocketException();
           when(() => socket.connect()).thenThrow(exception);
           // assert
-
           expect(() => ros.connect(), throwsA(same(exception)));
         },
       );
