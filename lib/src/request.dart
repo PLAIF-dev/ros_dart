@@ -99,7 +99,7 @@ class RosRequest {
       'topic': topic ?? '',
       'msg': msg,
       'latch': latch ?? false,
-      'compression': compression ?? '',
+      'compression': compression?.name ?? '',
       'throttle_rate': throttleRate ?? -1,
       'queue_length': queueLength ?? 0,
       'queue_size': queueSize ?? 0,
