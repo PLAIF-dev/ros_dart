@@ -77,7 +77,7 @@ class RosTopic {
   bool get isAdvertised => advertiseId != null;
 
   ///
-  Future<void> subscribe(SubscribeHandler handler) async {
+  Stream<Map<String, dynamic>> subscribe() async* {
     if (subscribeId == null) {
       subscription = ros.stream;
       subscribeId = ros.requestSubscriber(name);
@@ -92,14 +92,10 @@ class RosTopic {
           queueLength: queueLength,
         ),
       );
-      subscription!.listen(
-        (message) async {
-          if (message['topic'] != name) {
-            return;
-          }
-          await handler(message['msg'] as Map<String, dynamic>);
-        },
-      );
+
+      yield* subscription!
+          .where((message) => message['topic'] == name)
+          .map((event) => event['msg'] as Map<String, dynamic>);
     }
   }
 

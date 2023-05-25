@@ -72,7 +72,7 @@ class RosAction {
     await canceler.advertise();
 
     if (!omitStatus) {
-      await statuser.subscribe((data) async {});
+      await statuser.subscribe();
       subs.add(statuser.subscription!.listen((message) {
         for (final status
             in message['status_list'] as List<Map<String, dynamic>>) {
@@ -84,7 +84,7 @@ class RosAction {
     }
 
     if (!omitFeedback) {
-      await feedbacker.subscribe((data) async {});
+      feedbacker.subscribe();
       subs.add(feedbacker.subscription!.listen((message) {
         final g = message['status']['goal_id']['id'] as String;
         goals[g] ??= StreamController.broadcast();
@@ -94,7 +94,7 @@ class RosAction {
     }
 
     if (!omitResult) {
-      await resulter.subscribe((data) async {});
+      resulter.subscribe();
       subs.add(resulter.subscription!.listen((message) {
         final g = message['status']['goal_id']['id'] as String;
         goals[g] ??= StreamController.broadcast();
