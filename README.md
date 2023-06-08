@@ -12,7 +12,7 @@ Add `ros_dart` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  ros_dart:
+  sw_ros_dart:
 ```
 ---
 
