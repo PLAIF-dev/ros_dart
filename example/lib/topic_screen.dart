@@ -11,40 +11,40 @@ class TopicScreen extends StatefulWidget {
 
 class _TopicScreenState extends State<TopicScreen> {
   late Ros _ros;
-  late RosTopic _topic;
   final _random = math.Random();
 
   @override
   void initState() {
     super.initState();
-    _ros = Ros(uri: Uri.parse('ws://127.0.0.1:9090'));
-    _topic = RosTopic(
-      ros: _ros,
-      name: '/turtle1/cmd_vel',
-      type: 'geometry_msgs/Twist',
-    );
-    _ros.connect();
+    _ros = Ros.implement();
+
+    _ros.connect(Uri.parse('ws://127.0.0.1:9090'));
   }
 
   @override
   void dispose() {
-    _ros.close();
+    _ros.disconnect();
     super.dispose();
   }
 
   void _sendTopic() {
-    _topic.publish({
-      'linear': {
-        'x': _random.nextDouble() * 2 * (_random.nextBool() ? 1 : -1),
-        'y': _random.nextDouble() * 2 * (_random.nextBool() ? 1 : -1),
-        'z': 0,
+    final request = RosTopic.publish(
+      topic: '/turtle1/cmd_vel',
+      msg: {
+        'linear': {
+          'x': _random.nextDouble() * 2 * (_random.nextBool() ? 1 : -1),
+          'y': _random.nextDouble() * 2 * (_random.nextBool() ? 1 : -1),
+          'z': 0,
+        },
+        'angular': {
+          'x': 0,
+          'y': 0,
+          'z': 0,
+        },
       },
-      'angular': {
-        'x': 0,
-        'y': 0,
-        'z': 0,
-      },
-    });
+    );
+
+    _ros.send(request);
   }
 
   @override

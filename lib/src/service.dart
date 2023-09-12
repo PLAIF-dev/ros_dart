@@ -1,112 +1,161 @@
 part of '../ros_dart.dart';
 
-/// A callback from advertisement succeeds
-typedef ServiceHandler = Future<Map<String, dynamic>>? Function(
-  Map<String, dynamic> args,
-);
+/// [ROSBridge Protocol](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md)
+/// 중 `Service` 에 관련된 요청 모음
+///
+/// 1. call
+/// 2. advertise
+/// 3. unadvertise
+abstract class RosService with RosRequest {
+  /// 하위 클래스를 const 로 사용하기 위해서 const constructor 정의함
+  const RosService();
 
-/// ROS service wrapper
-class RosService {
-  /// default constructor
-  RosService({
-    required this.ros,
-    required this.name,
-    required this.type,
+  /// API call 과 비슷함
+  ///
+  /// [공식 문서](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md#346-call-service)
+  /// 참고
+  const factory RosService.call({
+    required String service,
+    String id,
+    List<Map<String, dynamic>> args,
+    int fragmentSize,
+    Compression compression,
+  }) = RosCallService._;
+
+  /// Service 호출전 `roscore` 에 보내 호출한다고 알려주는 요청
+  ///
+  /// [공식 문서](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md#347-advertise-service)
+  /// 참고
+  const factory RosService.advertise({
+    required String type,
+    required String service,
+  }) = RosAdvertiseService._;
+
+  /// Service 호출 후 호출 끝났다고 알려주는 요청
+  ///
+  /// [공식 문서](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md#348-unadvertise-service)
+  /// 참고
+  const factory RosService.unadvertise({
+    required String service,
+  }) = RosUnadvertiseService._;
+}
+
+/// API call 과 비슷함
+///
+/// [공식 문서](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md#346-call-service)
+/// 참고
+class RosCallService extends RosService {
+  ///
+  const RosCallService._({
+    required this.service,
+    this.id,
+    this.args = const [],
+    this.fragmentSize,
+    this.compression = Compression.none,
   });
 
-  /// ROS object
-  final Ros ros;
+  ///
+  final String? id;
 
-  /// service name
-  final String name;
+  /// Service 이름
+  final String service;
 
-  /// service type
+  /// 호출 위해 전달해야 할 arguments
+  final List<Map<String, dynamic>> args;
+
+  ///
+  final int? fragmentSize;
+
+  /// 이미지 압축 형태
+  final Compression compression;
+
+  @override
+  String get op => 'call_service';
+
+  @override
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'op': op,
+      if (id != null) 'id': id,
+      'service': service,
+      'args': args,
+      if (fragmentSize != null) 'fragmentSize': fragmentSize,
+      'compression': compression.name,
+    };
+  }
+
+  @override
+  bool didGetValidResponse(Map<String, dynamic> response) {
+    return response['service'] == service;
+  }
+
+  @override
+  bool get hasResponse => true;
+}
+
+/// Service 호출전 `roscore` 에 보내 호출한다고 알려주는 요청
+///
+/// [공식 문서](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md#347-advertise-service)
+/// 참고
+class RosAdvertiseService extends RosService {
+  ///
+  const RosAdvertiseService._({
+    required this.type,
+    required this.service,
+  });
+
   final String type;
 
-  // this watches advertising
-  Stream<Map<String, dynamic>>? _advertiser;
+  final String service;
 
-  /// true if advertising now
-  bool get isAdvertised => _advertiser != null;
+  @override
+  String get op => 'advertise_service';
 
-  /// This object catches ROS Service callback and returns value as [Future]
-  late StreamSubscription<dynamic> _listener;
-
-  /// service call with [RosRequest.args]
-  Future<dynamic> call(Map<String, dynamic> args) async {
-    // TODO(youngmin-gwon): change to custom exception
-    // if (isAdvertised) throw UnimplementedError();
-
-    final callId = ros.requestServiceCaller(name);
-    final receiver = ros.stream
-        .where(
-      (message) => message['id'] == callId,
-    )
-        .map(
-      (message) {
-        if (message['result'] == null) {
-          // TODO(youngmin-gwon): consider whether it throws exception or empty
-          throw UnimplementedError();
-        }
-        return json.decode(message['result'].toString());
-      },
-    );
-
-    final completer = Completer<dynamic>();
-    _listener = receiver.listen((d) {
-      completer.complete(d);
-      _listener.cancel();
-    });
-
-    ros.send(
-      RosRequest(
-        op: 'call_service',
-        id: callId,
-        service: name,
-        type: type,
-        args: args,
-      ).encode(),
-    );
-
-    return completer.future;
+  @override
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'op': op,
+      'type': type,
+      'service': service,
+    };
   }
 
-  /// it starts advertising
-  Future<void> advertise(ServiceHandler handler) async {
-    if (isAdvertised) return;
-
-    final request = RosRequest(
-      op: 'advertise_service',
-      type: type,
-      service: name,
-    );
-    ros.send(request.encode());
-
-    _advertiser = ros.stream;
-    _advertiser!.listen((message) async {
-      if (message['service'] != name) return;
-
-      final resp =
-          await handler(message['args'] as Map<String, dynamic>? ?? {});
-      final request = RosRequest(
-        op: 'service_response',
-        id: message['id'] as String? ?? '',
-        service: name,
-        values: resp ?? {},
-        result: resp != null,
-      );
-      ros.send(request.encode());
-    });
+  @override
+  bool didGetValidResponse(Map<String, dynamic> response) {
+    return true;
   }
 
-  /// it stops advertising
-  void unadvertise() {
-    if (!isAdvertised) return;
-    final request = RosRequest(
-      op: 'unadvertise_service',
-      service: name,
-    );
-    ros.send(request.encode());
-    _advertiser = null;
+  @override
+  bool get hasResponse => false;
+}
+
+/// Service 호출 후 호출 끝났다고 알려주는 요청
+///
+/// [공식 문서](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md#348-unadvertise-service)
+/// 참고
+class RosUnadvertiseService extends RosService {
+  const RosUnadvertiseService._({
+    required this.service,
+  });
+
+  final String service;
+
+  @override
+  String get op => 'unadvertise_service';
+
+  @override
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'op': op,
+      'service': service,
+    };
   }
+
+  @override
+  bool didGetValidResponse(Map<String, dynamic> response) {
+    return true;
+  }
+
+  @override
+  bool get hasResponse => false;
 }

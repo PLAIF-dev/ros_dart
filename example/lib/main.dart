@@ -1,4 +1,3 @@
-import 'package:example/service_screen.dart';
 import 'package:example/topic_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -39,12 +38,6 @@ class MyHomePage extends StatelessWidget {
               onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (context) => const TopicScreen())),
               child: const Text('Topic'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) => const ServiceScreen())),
-              child: const Text('Service'),
             ),
           ],
         ),
