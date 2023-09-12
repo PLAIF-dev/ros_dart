@@ -10,3 +10,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           manifest: .github/labels.yml
+          repository: |
+            PLAIF-dev/sw_ros_dart
