@@ -1,55 +1,129 @@
-// Copyright (c) 2019 Conrad Heidebrecht.
-
 part of '../ros_dart.dart';
 
-/// ROS Parameter wrapper
-class RosParam {
-  /// ROS Parameter wrapper
-  const RosParam({
-    required this.ros,
+/// ROS Parameter Server 에 등록된 parameter를
+///
+/// 1. 가져오기(Read)
+/// 2. 수정하기(Update)
+/// 3. 삭제하기(Delete)
+///
+/// 하는 요청
+abstract class RosParam with RosRequest {
+  /// 하위 클래스를 const 로 사용하기 위해서 const constructor 정의함
+  const RosParam();
+
+  /// parameter 를 가져오는 요청
+  ///
+  /// 따로 프로토콜이 정리되어 있는 것은 없음
+  /// 내부적으로는 [RosService.call] protocol 형태의 데이터를 보냄
+  const factory RosParam.get({
+    required String name,
+  }) = RosGetParam._;
+
+  /// parameter 를 변경하는 요청
+  ///
+  /// 따로 프로토콜이 정리되어 있는 것은 없음
+  /// 내부적으로는 [RosService.call] protocol 형태의 데이터를 보냄
+  const factory RosParam.set({
+    required String name,
+    required String value,
+  }) = RosSetParam._;
+
+  /// parameter 를 삭제 요청
+  ///
+  /// 따로 프로토콜이 정리되어 있는 것은 없음
+  /// 내부적으로는 [RosService.call] protocol 형태의 데이터를 보냄
+  const factory RosParam.delete({
+    required String name,
+  }) = RosDeleteParam._;
+
+  @override
+  String get op => 'call_service';
+}
+
+class RosGetParam extends RosParam {
+  const RosGetParam._({
     required this.name,
   });
 
-  /// [Ros] object which handles connection with `ROS`.
-  final Ros ros;
-
-  /// [RosParam] name. Check this with the command below.
-  /// ```shell
-  /// rosparam list
-  /// ```
-  ///
   final String name;
 
-  /// this method mostly returns [bool] value for call success
-  Future<dynamic> get() async {
-    final client = RosService(
-      ros: ros,
-      name: '/rosapi/get_param',
-      type: 'rosapi/GetParam',
-    );
-    return client.call({'name': name});
+  @override
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'op': op,
+      'service': _service,
+      'args': {'name': name},
+    };
   }
 
-  /// this method mostly returns [bool] value for call success
-  Future<dynamic> set(dynamic value) async {
-    final client = RosService(
-      ros: ros,
-      name: '/rosapi/set_param',
-      type: 'rosapi/SetParam',
-    );
-    return client.call({
-      'name': name,
-      'value': value,
-    });
+  @override
+  bool didGetValidResponse(Map<String, dynamic> response) {
+    return response['service'] == _service;
   }
 
-  /// this method mostly returns [bool] value for call success
-  Future<dynamic> delete() async {
-    final client = RosService(
-      ros: ros,
-      name: '/rosapi/delete_param',
-      type: 'rosapi/DeleteParam',
-    );
-    return client.call({'name': name});
+  @override
+  bool get hasResponse => true;
+
+  String get _service => '/rosapi/get_param';
+}
+
+///
+class RosSetParam extends RosParam {
+  ///
+  const RosSetParam._({
+    required this.name,
+    required this.value,
+  });
+
+  final String name;
+  final String value;
+
+  @override
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'op': op,
+      'service': _service,
+      'args': {
+        'name': name,
+        'value': value,
+      },
+    };
   }
+
+  @override
+  bool didGetValidResponse(Map<String, dynamic> response) {
+    return response['service'] == _service;
+  }
+
+  @override
+  bool get hasResponse => true;
+
+  String get _service => '/rosapi/set_param';
+}
+
+class RosDeleteParam extends RosParam {
+  const RosDeleteParam._({
+    required this.name,
+  });
+
+  final String name;
+
+  @override
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'op': op,
+      'service': _service,
+      'args': {'name': name},
+    };
+  }
+
+  @override
+  bool didGetValidResponse(Map<String, dynamic> response) {
+    return response['service'] == _service;
+  }
+
+  @override
+  bool get hasResponse => true;
+
+  String get _service => '/rosapi/delete_param';
 }

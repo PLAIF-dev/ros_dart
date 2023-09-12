@@ -1,117 +1,33 @@
 part of '../ros_dart.dart';
 
-/// Container for all possible ROS request parameters
-class RosRequest {
-  /// A proposal object to receive data from protocols
-  /// such as topic, service in ROS
-  /// !warning: This writer arbitrarily assume that the request is immutable
-  const RosRequest({
-    required this.op,
-    this.id,
-    this.type,
-    this.topic,
-    this.msg = const {},
-    this.latch,
-    this.compression,
-    this.throttleRate,
-    this.queueLength,
-    this.queueSize,
-    this.service,
-    this.args,
-    this.values,
-    this.result,
-  });
+/// [ROSBridge Protocol](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md)
+/// 에 정의된 타입을 Composition으로 사용하기 위해 정의한 `mixin`
+mixin RosRequest {
+  /// "call_service", "advertise_service" 등과 같은 연산 이름
+  /// subclass 에서 직접 이름 지정
+  String get op;
 
-  /// Use this always to convert raw `String` data to `RosRequest`
-  factory RosRequest.decode(String raw) {
-    return RosRequest.fromJson(json.decode(raw) as Map<String, dynamic>);
-  }
+  /// 각 [RosRequest] 프로토콜을 표현하기 위해 각 subclass 에서 구현함
+  Map<String, dynamic> toMap();
 
-  /// `JSON` converter
-  factory RosRequest.fromJson(Map<String, dynamic> jsonData) {
-    return RosRequest(
-      op: jsonData['op'] as String,
-      id: jsonData['id'] as String?,
-      type: jsonData['type'] as String?,
-      topic: jsonData['topic'] as String?,
-      msg: jsonData['msg'] as Map<String, dynamic>,
-      latch: jsonData['latch'] as bool?,
-      compression: RosCompression.values.firstWhere(
-        (e) => e.toString() == jsonData['compression'] as String?,
-      ),
-      throttleRate: jsonData['throttle_rate'] as int?,
-      queueLength: jsonData['queue_length'] as int?,
-      queueSize: jsonData['queue_size'] as int?,
-      service: jsonData['service'] as String?,
-      args: jsonData['args'] as Map<String, dynamic>?,
-      values: jsonData['values'],
-      result: jsonData['result'] as bool?,
-    );
-  }
+  /// [Ros] (혹은 [WebSocket])을 통해 메시지를 보낼 때 모두 직렬화 한 이후에 보내야하기 때문에
+  /// 사용하는 공통 로직
+  String toJson() => json.encode(toMap());
 
-  /// operation name such as `call_service`, `advertise_service`
-  final String op;
+  /// 각 [RosRequest]의 subclass 들은 응답 결과가 있을수도 있고 없을 수도 있음
+  /// e.g. [RosService.call] 의 경우, 요청에 대해 응답이 있지만, [RosService.advertise],
+  ///      [RosTopic.publish] 같은 요청은 응답이 없거나, 응답을 사용하지 않음
+  bool get hasResponse;
 
-  /// arbitrary id for uniqueness
-  final String? id;
+  /// 제대로된 응답을 수신했는지 확인. [Ros] 에서 사용
+  /// 하나의 socket 채널을 통해서 [Stream] 값이 무작위로 들어오기 때문에 제대로 된 값인지
+  /// 판별하기 위해 사용
+  bool didGetValidResponse(Map<String, dynamic> response);
+}
 
-  /// type of service or message
-  final String? type;
-
-  /// [RosTopic.name]
-  final String? topic;
-
-  /// messages
-  final Map<String, dynamic> msg;
-
-  /// true when topic latches in publishing
-  final bool? latch;
-
-  /// compression type such as `png`, `cbor`.
-  final RosCompression? compression;
-
-  /// rate to pass between message by message
-  final int? throttleRate;
-
-  /// queue length from ROSBridge to subscribe
-  final int? queueLength;
-
-  /// queue size from ROSBridge to republish topic
-  final int? queueSize;
-
-  /// service name
-  final String? service;
-
-  /// JSON arguments
-  final Map<String, dynamic>? args;
-
-  /// the result can vary from `bool` to `JSON List`
-  final dynamic values;
-
-  /// true when indicating the success of the operation.
-  final bool? result;
-
-  /// Use this because Language Server cannot guarantee typo of [Map]
-  Map<String, dynamic> toJson() {
-    return {
-      'op': op,
-      'id': id ?? '',
-      'topic': topic ?? '',
-      'msg': msg,
-      'latch': latch ?? false,
-      'compression': compression?.name ?? '',
-      'throttle_rate': throttleRate ?? -1,
-      'queue_length': queueLength ?? 0,
-      'queue_size': queueSize ?? 0,
-      'service': service ?? '',
-      'args': args ?? '',
-      'values': values,
-      'result': result ?? false,
-    };
-  }
-
-  /// Use this always to convert this object to `String`
-  String encode() {
-    return json.encode(toJson());
-  }
+/// [ROSBridge Protocol](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md)
+/// 에 정의 되어 있는 Image compression type
+enum Compression {
+  none,
+  png,
 }

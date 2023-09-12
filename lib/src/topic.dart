@@ -1,181 +1,242 @@
 part of '../ros_dart.dart';
 
-/// callback when advertising service
-typedef SubscribeHandler = Future<void> Function(Map<String, dynamic> args);
+/// [ROSBridge Protocol](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md)
+/// 중 `Topic` 에 관련된 요청 모음
+///
+/// 1. advertise
+/// 2. unadvertise
+/// 3. publish
+/// 4. subscribe
+/// 5. unsubscribe
+abstract class RosTopic with RosRequest {
+  /// 하위 클래스를 const 로 사용하기 위해서 const constructor 정의함
+  const RosTopic();
 
-/// Compression extension
-enum RosCompression {
+  /// [RosTopic] 을 publish 하기 전에 ROS 에 알리는 요청
   ///
-  none,
+  /// [공식 문서](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md#341-advertise--advertise-)
+  /// 참고
+  const factory RosTopic.advertise({
+    required String topic,
+    required String type,
+    String id,
+  }) = RosAdvertiseTopic._;
 
+  /// [RosTopic] 을 publish 한 이후 ROS 에게 알리는 요청
   ///
-  png,
+  /// [공식 문서](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md#342-unadvertise--unadvertise-)
+  /// 참고
+  const factory RosTopic.unadvertise({
+    required String topic,
+    String id,
+  }) = RosUnadvertiseTopic._;
 
+  /// ROS 에 데이터를 보내 이를 구독하는 각 Node에 알리는 요청
   ///
-  cbor,
+  /// [공식 문서](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md#343-publish--publish-)
+  /// 참고
+  const factory RosTopic.publish({
+    required String topic,
+    required Map<String, dynamic> msg,
+    String id,
+  }) = RosPublishTopic._;
+
+  /// [RosTopic] 으로 새로운 데이터가 들어오면 알려주도록 하는 요청
+  ///
+  /// [공식 문서](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md#344-subscribe)
+  /// 참고
+  const factory RosTopic.subscribe({
+    required String topic,
+    String id,
+    String type,
+    int throttleRate,
+    int queueLength,
+    int fragmentSize,
+    Compression compression,
+  }) = RosSubscribeTopic._;
+
+  /// [RosTopic.subscribe]가 끝났음을 알리는 요청
+  ///
+  /// [공식 문서](https://github.com/biobotus/rosbridge_suite/blob/master/ROSBRIDGE_PROTOCOL.md#345-unsubscribe)
+  /// 참고
+  const factory RosTopic.unsubscribe({
+    required String topic,
+    String id,
+  }) = RosUnsubscribeTopic._;
 }
 
-/// ROS Topic wrapper
-class RosTopic {
-  /// ROS Topic wrapper
-  RosTopic({
-    required this.ros,
-    required this.name,
+class RosAdvertiseTopic extends RosTopic {
+  const RosAdvertiseTopic._({
+    required this.topic,
     required this.type,
-    this.compression = RosCompression.none,
-    this.throttleRate = 0,
-    this.latch = false,
-    this.queueSize = 100,
-    this.queueLength = 0,
-    this.reconnectOnClose = true,
-  }) : assert(throttleRate >= 0, 'throttleRate must be positive');
+    this.id,
+  });
 
-  /// [Ros] object
-  final Ros ros;
+  final String? id;
 
-  /// Topic name
-  ///
-  /// ex) /turtle1/cmd_vel
-  final String name;
+  final String topic;
 
-  /// Topic type
-  ///
-  /// ex) /geometry_msgs/Twist
   final String type;
 
-  ///
-  Stream<Map<String, dynamic>>? subscription;
+  @override
+  String get op => 'advertise';
 
-  /// id of subscriber
-  String? subscribeId;
+  @override
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'op': op,
+      if (id != null) 'id': id,
+      'topic': topic,
+      'type': type,
+    };
+  }
 
-  /// id of advertiser
-  String? advertiseId;
+  @override
+  bool didGetValidResponse(Map<String, dynamic> response) {
+    return true;
+  }
 
-  /// id of publisher
-  late String publishId;
+  @override
+  bool get hasResponse => false;
+}
 
-  /// compression type such as 'png' or 'cbor'. default is [RosCompression.none]
-  final RosCompression compression;
+class RosUnadvertiseTopic extends RosTopic {
+  const RosUnadvertiseTopic._({required this.topic, this.id});
 
-  ///
-  final bool reconnectOnClose;
+  final String? id;
 
-  /// true when topic latches in publishing
-  final bool latch;
+  final String topic;
 
-  /// rate to pass between message by message
+  @override
+  String get op => 'unadvertise';
+
+  @override
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'op': op,
+      if (id != null) 'id': id,
+      'topic': topic,
+    };
+  }
+
+  @override
+  bool didGetValidResponse(Map<String, dynamic> response) {
+    return true;
+  }
+
+  @override
+  bool get hasResponse => false;
+}
+
+class RosPublishTopic extends RosTopic {
+  const RosPublishTopic._({required this.topic, required this.msg, this.id});
+
+  final String? id;
+
+  final String topic;
+
+  final Map<String, dynamic> msg;
+
+  @override
+  String get op => 'publish';
+
+  @override
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'op': op,
+      if (id != null) 'id': id,
+      'topic': topic,
+      'msg': msg,
+    };
+  }
+
+  @override
+  bool didGetValidResponse(Map<String, dynamic> response) {
+    return true;
+  }
+
+  @override
+  bool get hasResponse => false;
+}
+
+class RosSubscribeTopic extends RosTopic {
+  const RosSubscribeTopic._({
+    required this.topic,
+    this.id,
+    this.type,
+    this.throttleRate = 0,
+    this.queueLength = 1,
+    this.fragmentSize,
+    this.compression = Compression.none,
+  });
+
+  final String? id;
+
+  final String topic;
+
+  final String? type;
+
   final int throttleRate;
 
-  /// queue length from ROSBridge to subscribe
   final int queueLength;
 
-  /// queue size from ROSBridge to republish topic
-  final int queueSize;
+  final int? fragmentSize;
 
-  /// true when advertised
-  bool get isAdvertised => advertiseId != null;
+  final Compression compression;
 
-  ///
-  Stream<Map<String, dynamic>> subscribe() async* {
-    if (subscribeId == null) {
-      subscription = ros.stream;
-      subscribeId = ros.requestSubscriber(name);
-      await safeSend(
-        RosRequest(
-          op: 'subscribe',
-          id: subscribeId,
-          type: type,
-          topic: name,
-          compression: compression,
-          throttleRate: throttleRate,
-          queueLength: queueLength,
-        ),
-      );
+  @override
+  String get op => 'subscribe';
 
-      yield* subscription!
-          .where((message) => message['topic'] == name)
-          .map((event) => event['msg'] as Map<String, dynamic>);
-    }
+  @override
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'op': op,
+      if (id != null) 'id': id,
+      'topic': topic,
+      if (type != null) 'type': type,
+      'throttleRate': throttleRate,
+      'queueLength': queueLength,
+      if (fragmentSize != null) 'fragmentSize': fragmentSize,
+      'compression': compression.name,
+    };
   }
 
-  /// 구독 취소 request 보낸 후 value 값 초기화
-  Future<void> unsubscribe() async {
-    if (subscribeId != null) {
-      await safeSend(
-        RosRequest(
-          op: 'unsubscribe',
-          id: subscribeId,
-          topic: name,
-        ),
-      );
-      subscription = null;
-      subscribeId = null;
-    }
+  @override
+  bool didGetValidResponse(Map<String, dynamic> response) {
+    return response['topic'] == topic;
   }
 
-  /// [message] 를 topic에 전달
-  Future<void> publish(Map<String, dynamic> message) async {
-    await advertise();
-    publishId = ros.requestPublisher(name);
-    await safeSend(
-      RosRequest(
-        op: 'publish',
-        topic: name,
-        id: publishId,
-        msg: message,
-        latch: latch,
-      ),
-    );
+  @override
+  bool get hasResponse => true;
+}
+
+class RosUnsubscribeTopic extends RosTopic {
+  const RosUnsubscribeTopic._({
+    required this.topic,
+    this.id,
+  });
+
+  final String? id;
+
+  final String topic;
+
+  @override
+  String get op => 'unsubscribe';
+
+  @override
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'op': op,
+      if (id != null) 'id': id,
+      'topic': topic,
+    };
   }
 
-  /// it starts advertising
-  Future<void> advertise() async {
-    if (!isAdvertised) {
-      advertiseId = ros.requestAdvertiser(name);
-      await safeSend(
-        RosRequest(
-          op: 'advertise',
-          id: advertiseId,
-          type: type,
-          topic: name,
-          latch: latch,
-          queueSize: queueSize,
-        ),
-      );
-
-      await watchForClose();
-    }
+  @override
+  bool didGetValidResponse(Map<String, dynamic> response) {
+    return true;
   }
 
-  /// it stops advertising
-  Future<void> unadvertise() async {
-    if (isAdvertised) {
-      await safeSend(
-        RosRequest(
-          op: 'unadvertise',
-          id: advertiseId,
-          topic: name,
-        ),
-      );
-      advertiseId = null;
-    }
-  }
-
-  /// Wait for the connection to close and then reset advertising variables.
-  Future<void> watchForClose() async {
-    if (!reconnectOnClose) {
-      await ros.statusStream.firstWhere((s) => s == RosStatus.closed);
-      advertiseId = null;
-    }
-  }
-
-  /// This function has more conditional logic than [Ros.send]
-  Future<void> safeSend(RosRequest request) async {
-    ros.send(request.encode());
-    if (reconnectOnClose && ros.status != RosStatus.connected) {
-      await ros.statusStream.firstWhere((s) => s == RosStatus.connected);
-      ros.send(request.encode());
-    }
-  }
+  @override
+  bool get hasResponse => false;
 }
