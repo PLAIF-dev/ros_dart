@@ -32,7 +32,7 @@ class RosImpl implements Ros {
   @override
   Future<void> connect(Uri uri) async {
     try {
-      _socket = await WebSocket.connect(uri.path);
+      _socket = await WebSocket.connect(uri.toString());
     } on SocketException {
       rethrow;
     }
